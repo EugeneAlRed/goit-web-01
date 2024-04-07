@@ -120,23 +120,78 @@ class AddressBook(UserDict):
             result_str = "\n".join([f"{k}:{v}" for k, v in dict.items()])
         return str(result_str)
 
+
+list_of_commands = "Commands:\n"\
+    "add [name] [phone] - Create a new contact\n"\
+    "change [name] [new_phone] - Change phone number\n"\
+    "phone [name] - Show phone number\n"\
+    "all - Show all contacts\n"\
+    "add-birthday [name] [birthday] - Create birthday\n"\
+    "show-birthday [name] - Show birthday\n"\
+    "birthdays - Show upcoming birthdays"
+
+
 class BotInterface(ABC):
 
     @abstractmethod
-    def message(self, address_book: AddressBook):
+    def message_welcome(self, address_book: AddressBook):
+        pass
+
+    @abstractmethod
+    def show_commands(self, commands):
+        pass
+
+    @abstractmethod
+    def show_contacts(self, contact):
+        pass
+
+    @abstractmethod
+    def show_congratuation(self, congrats_list):
         pass
 
 
-
-
-
-
 class UserInterface(BotInterface):
-    def message(self, address_book: AddressBook):
+    def message_welcome(self, address_book: AddressBook):
         print("Welcome to the assistant bot!\n",
-        "Type 'help' for a list of available commands")
+              "Type 'help' for a list of available commands")
+
+    def show_commands(self, commands):
+        print('Commands: ')
+        for i in commands:
+            print(i)
+
+    def show_contacts(self, contact):
+        if isinstance(contact, Record):
+            print('Contacts: ')
+            print(f"{contact.name}: {contact}")
+        else:
+            print('Contacts: ')
+            for i in contact:
+                print(f" {i[0]}: {i[1]}")
+
+    def show_congratuation(self, congrats_list):
+        if len(congrats_list) != 0:
+            print(f"Congratulations! Birthday: {congrats_list}")
+        else:
+            print("There are no congratulations")
+
+    def show_birthday(self, record: Record):
+        print(
+            f"Birthday of {record.name}: {record.birthday.strftime('%Y.%m.%d')}")
 
 
+def save_data(book, filename="addressbook.pkl"):
+    with open(filename, "wb") as f:
+        pickle.dump(book, f)
+
+
+def load_data(filename="addressbook.pkl"):
+    try:
+        with open(filename, "+rb") as f:
+            restored_bk = pickle.load(f)
+            return restored_bk
+    except (FileNotFoundError, EOFError, pickle.UnpicklingError):
+        return AddressBook()
 
 
 def input_error(func):
@@ -207,3 +262,46 @@ def add_birthday(*args):
 
 
 book = load_data()
+
+
+def main():
+    user = UserInterface()
+    user.message_welcome(book)
+    while True:
+        user_input = input("Enter a command: ").strip().lower()
+        command, *args = parse_input(user_input)
+        if command in ["close", "exit"]:
+            save_data(book)
+            print("Good bye!")
+            break
+        elif command == "hello":
+            print("How can I help you?")
+        elif command == "add":
+            new_contact = add_contact(*args)
+            user.show_contacts(new_contact)
+        elif command == 'change':
+            changed_contact = change_contact(command, *args)
+            user.show_contacts(new_contact)
+        elif command == "phone":
+            phones = show_phone(*args)
+            user.show_contacts(new_contact)
+        elif command == "all":
+            all_records = [i for i in book.items()]
+            user.show_contacts(new_contact)
+        elif command == "add-birthday":
+            contact = add_birthday(*args)
+            user.show_contacts(new_contact)
+        elif command == "show-birthday":
+            b_day = show_birthday(*args)
+            user.show_birthday(b_day)
+        elif command == "birthdays":
+            congrats_list = book.get_birthdays(7)
+            user.show_congratuation(congrats_list)
+        elif command == "help":
+            user.show_commands(list_of_commands)
+        else:
+            print("Invalid command")
+
+
+if __name__ == '__main__':
+    main()
